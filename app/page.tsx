@@ -14,12 +14,10 @@ export default function HomePage() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Favorileri Yükle
     const saved = localStorage.getItem('favorites');
     if (saved) {
       const parsedFavs = JSON.parse(saved);
       setFavorites(parsedFavs);
-      // Arka planda favorilerin canlılık durumunu kontrol et
       checkFavsLiveStatus(parsedFavs);
     }
     
@@ -34,11 +32,9 @@ export default function HomePage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Favorilerin canlılık durumunu API'den sorgulayan fonksiyon
   async function checkFavsLiveStatus(favList: any[]) {
     if (favList.length === 0) return;
     try {
-      // Mevcut arama API'sini kullanarak favorilerin durumunu güncelle
       const updatedFavs = await Promise.all(favList.map(async (fav) => {
         const res = await fetch(`/api/search?q=${fav.name}`);
         const data = await res.json();
@@ -111,7 +107,6 @@ export default function HomePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             
-            {/* Arama Paneli (Overlay) */}
             {isSearching && searchResults.length > 0 && (
               <div className="absolute w-full mt-3 bg-[#1C1C1F] border border-gray-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-[110] max-h-96 overflow-auto">
                 {searchResults.map((result, idx) => (
@@ -121,7 +116,14 @@ export default function HomePage() {
                       <div className="truncate text-left">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-bold text-sm truncate text-white">{result.name}</span>
-                          <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase ${result.platform === 'kick' ? 'bg-[#53FC18] text-black' : 'bg-[#9146FF] text-white'}`}>{result.platform}</span>
+                          {/* YOUTUBE KIRMIZI AYARI BURADA */}
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase ${
+                            result.platform === 'kick' ? 'bg-[#53FC18] text-black' : 
+                            result.platform === 'youtube' ? 'bg-[#FF0000] text-white' : 
+                            'bg-[#9146FF] text-white'
+                          }`}>
+                            {result.platform}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Circle className={`w-2 h-2 ${result.isLive ? 'fill-[#FF0000] text-[#FF0000]' : 'fill-gray-600 text-gray-600'}`} />
@@ -144,7 +146,6 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-          {/* FAVORİLER BÖLÜMÜ - CANLI KONTROLLÜ */}
           {favorites.length > 0 && (
             <div className="mb-12">
               <h2 className="text-xl font-black italic uppercase tracking-tighter mb-6 text-[#53FC18] flex items-center gap-2 cursor-default">
@@ -153,7 +154,6 @@ export default function HomePage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {favorites.map((fav) => (
                   <div key={fav.id} className="bg-[#18181B] p-4 rounded-3xl border border-gray-800 flex flex-col items-center gap-3 relative group hover:border-[#53FC18]/40 transition-all shadow-lg cursor-default">
-                    {/* Canlı Noktası */}
                     {fav.isLive && (
                       <div className="absolute top-4 left-4 flex items-center gap-1">
                         <div className="w-2 h-2 bg-[#FF0000] rounded-full animate-ping absolute"></div>
@@ -166,7 +166,14 @@ export default function HomePage() {
                     <img src={fav.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=' + fav.name} className={`w-14 h-14 rounded-full border-2 ${fav.isLive ? 'border-[#FF0000]' : 'border-gray-700'} shadow-md`} alt="" />
                     <div className="flex flex-col items-center gap-1 w-full text-center">
                       <span className="text-xs font-bold truncate w-full text-white">{fav.name}</span>
-                      <span className="text-[8px] font-black uppercase text-gray-500">{fav.platform}</span>
+                      {/* FAVORİLERDEKİ YAZI RENGİ */}
+                      <span className={`text-[8px] font-black uppercase ${
+                        fav.platform === 'kick' ? 'text-[#53FC18]' : 
+                        fav.platform === 'youtube' ? 'text-[#FF0000]' : 
+                        'text-[#9146FF]'
+                      }`}>
+                        {fav.platform}
+                      </span>
                     </div>
                     <a href={fav.url} target="_blank" className="w-full text-center text-[10px] bg-white/5 py-2 rounded-xl hover:bg-[#53FC18] hover:text-black transition-all font-black uppercase tracking-widest">GİT</a>
                   </div>
@@ -176,7 +183,6 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* KEŞFET */}
           <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <h2 className="text-3xl font-black italic uppercase tracking-tighter cursor-default">KEŞFET</h2>
             <div className="flex gap-1 bg-[#18181B] p-1.5 rounded-full border border-gray-800 shadow-inner">
@@ -205,7 +211,14 @@ export default function HomePage() {
                       <img src={s.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=' + s.name} className="w-12 h-12 rounded-full border-2 border-gray-800 bg-gray-900 pointer-events-none shadow-xl" alt="" />
                       <div className="truncate leading-none text-left">
                         <h3 className="font-bold text-sm truncate text-white mb-1.5">{s.name}</h3>
-                        <p className={`text-[10px] font-black uppercase tracking-widest ${s.platform === 'kick' ? 'text-[#53FC18]' : 'text-[#9146FF]'}`}>{s.platform}</p>
+                        {/* ANA KARTLARDAKİ YOUTUBE KIRMIZI AYARI BURADA */}
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${
+                          s.platform === 'kick' ? 'text-[#53FC18]' : 
+                          s.platform === 'youtube' ? 'text-[#FF0000]' : 
+                          'text-[#9146FF]'
+                        }`}>
+                          {s.platform}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
