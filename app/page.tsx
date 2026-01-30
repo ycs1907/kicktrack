@@ -13,15 +13,22 @@ export default function HomePage() {
   const [filter, setFilter] = useState('all');
   const searchRef = useRef<HTMLDivElement>(null);
 
+  const loadAllData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    try {
+      const res = await fetch('/api/streams', { cache: 'no-store' });
+      const data = await res.json();
+      setStreamers(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem('favorites');
-    if (saved) {
-      const parsedFavs = JSON.parse(saved);
-      setFavorites(parsedFavs);
-      checkFavsLiveStatus(parsedFavs);
-    }
+    if (saved) setFavorites(JSON.parse(saved));
     
     loadAllData();
+    const interval = setInterval(() => loadAllData(true), 60000); // 1 dk'da bir tazele
 
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -29,31 +36,26 @@ export default function HomePage() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      clearInterval(interval);
+    };
   }, []);
 
-  async function checkFavsLiveStatus(favList: any[]) {
-    if (favList.length === 0) return;
-    try {
-      const updatedFavs = await Promise.all(favList.map(async (fav) => {
-        const res = await fetch(`/api/search?q=${fav.name}`);
-        const data = await res.json();
-        const found = data.find((d: any) => d.name.toLowerCase() === fav.name.toLowerCase());
-        return found ? { ...fav, isLive: found.isLive } : fav;
-      }));
-      setFavorites(updatedFavs);
-    } catch (e) { console.error("Favori kontrolü başarısız", e); }
-  }
-
-  async function loadAllData() {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/streams');
-      const data = await res.json();
-      setStreamers(Array.isArray(data) ? data : []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  }
+  // FAVORİLERİ SENKRONİZE ET (Kritik Alan)
+  const updatedFavorites = favorites.map(fav => {
+    // Hem ID hem de isim-platform üzerinden keşfet listesinde var mı bak
+    const liveMatch = streamers.find(s => 
+      s.id === fav.id || 
+      (s.name.toLowerCase() === fav.name.toLowerCase() && s.platform === fav.platform)
+    );
+    
+    return {
+      ...fav,
+      isLive: liveMatch ? true : (fav.isLive || false),
+      viewers: liveMatch ? liveMatch.viewers : 0
+    };
+  });
 
   useEffect(() => {
     const delayDebounce = setTimeout(async () => {
@@ -116,7 +118,6 @@ export default function HomePage() {
                       <div className="truncate text-left">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-bold text-sm truncate text-white">{result.name}</span>
-                          {/* YOUTUBE KIRMIZI AYARI BURADA */}
                           <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase ${
                             result.platform === 'kick' ? 'bg-[#53FC18] text-black' : 
                             result.platform === 'youtube' ? 'bg-[#FF0000] text-white' : 
@@ -146,13 +147,13 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-          {favorites.length > 0 && (
+          {updatedFavorites.length > 0 && (
             <div className="mb-12">
               <h2 className="text-xl font-black italic uppercase tracking-tighter mb-6 text-[#53FC18] flex items-center gap-2 cursor-default">
                 <Star className="w-5 h-5 fill-current" /> FAVORİLERİM
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {favorites.map((fav) => (
+                {updatedFavorites.map((fav) => (
                   <div key={fav.id} className="bg-[#18181B] p-4 rounded-3xl border border-gray-800 flex flex-col items-center gap-3 relative group hover:border-[#53FC18]/40 transition-all shadow-lg cursor-default">
                     {fav.isLive && (
                       <div className="absolute top-4 left-4 flex items-center gap-1">
@@ -166,7 +167,6 @@ export default function HomePage() {
                     <img src={fav.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=' + fav.name} className={`w-14 h-14 rounded-full border-2 ${fav.isLive ? 'border-[#FF0000]' : 'border-gray-700'} shadow-md`} alt="" />
                     <div className="flex flex-col items-center gap-1 w-full text-center">
                       <span className="text-xs font-bold truncate w-full text-white">{fav.name}</span>
-                      {/* FAVORİLERDEKİ YAZI RENGİ */}
                       <span className={`text-[8px] font-black uppercase ${
                         fav.platform === 'kick' ? 'text-[#53FC18]' : 
                         fav.platform === 'youtube' ? 'text-[#FF0000]' : 
@@ -211,7 +211,6 @@ export default function HomePage() {
                       <img src={s.avatar || 'https://api.dicebear.com/7.x/initials/svg?seed=' + s.name} className="w-12 h-12 rounded-full border-2 border-gray-800 bg-gray-900 pointer-events-none shadow-xl" alt="" />
                       <div className="truncate leading-none text-left">
                         <h3 className="font-bold text-sm truncate text-white mb-1.5">{s.name}</h3>
-                        {/* ANA KARTLARDAKİ YOUTUBE KIRMIZI AYARI BURADA */}
                         <p className={`text-[10px] font-black uppercase tracking-widest ${
                           s.platform === 'kick' ? 'text-[#53FC18]' : 
                           s.platform === 'youtube' ? 'text-[#FF0000]' : 

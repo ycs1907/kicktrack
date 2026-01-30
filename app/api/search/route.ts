@@ -33,38 +33,33 @@ export async function GET(request: Request) {
     const [kToken, tToken] = await Promise.all([getKickToken(), getTwitchToken()]);
 
     const [kickRes, twitchRes, youtubeRes] = await Promise.allSettled([
-      // KICK: Dökümandaki channels endpoint'ini kullanıyoruz (En güvenlisi)
       kToken ? fetch(`https://api.kick.com/public/v1/channels?slug=${encodeURIComponent(q.toLowerCase())}`, {
         headers: { 'Authorization': `Bearer ${kToken}`, 'Accept': 'application/json' }
       }).then(res => res.json()) : Promise.resolve({ data: [] }),
 
-      // TWITCH: Kanal araması
       tToken ? fetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(q)}&first=8`, {
         headers: { 'Client-ID': process.env.TWITCH_CLIENT_ID!, 'Authorization': `Bearer ${tToken}` }
       }).then(res => res.json()) : Promise.resolve({ data: [] }),
 
-      // YOUTUBE: Kanal araması
       fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q)}&type=channel&maxResults=5&key=${process.env.YOUTUBE_API_KEY}`).then(res => res.json())
     ]);
 
     const results: any[] = [];
 
-    // 1. KICK İŞLEME (Slug bazlı sonuç)
-    if (kickRes.status === 'fulfilled' && kickRes.value && kickRes.value.data) {
+    if (kickRes.status === 'fulfilled' && kickRes.value?.data) {
       kickRes.value.data.forEach((item: any) => {
         results.push({
           id: `kick-${item.broadcaster_user_id}`,
           name: item.slug,
           platform: 'kick',
           isLive: item.stream ? item.stream.is_live : false,
-          avatar: item.profile_picture || item.banner_picture || '',
+          avatar: item.profile_picture || '',
           url: `https://kick.com/${item.slug}`
         });
       });
     }
 
-    // 2. TWITCH İŞLEME
-    if (twitchRes.status === 'fulfilled' && twitchRes.value && twitchRes.value.data) {
+    if (twitchRes.status === 'fulfilled' && twitchRes.value?.data) {
       twitchRes.value.data.forEach((item: any) => {
         results.push({
           id: `twitch-${item.id}`,
@@ -77,14 +72,14 @@ export async function GET(request: Request) {
       });
     }
 
-    // 3. YOUTUBE İŞLEME
-    if (youtubeRes.status === 'fulfilled' && youtubeRes.value && youtubeRes.value.items) {
+    if (youtubeRes.status === 'fulfilled' && youtubeRes.value?.items) {
       youtubeRes.value.items.forEach((item: any) => {
         results.push({
           id: `youtube-${item.id.channelId}`,
           name: item.snippet.title,
           platform: 'youtube',
-          isLive: false,
+          //Snippet içindeki liveBroadcastContent kanallarda 'live', 'upcoming' veya 'none' döner
+          isLive: item.snippet.liveBroadcastContent === 'live',
           avatar: item.snippet.thumbnails?.default?.url,
           url: `https://youtube.com/channel/${item.id.channelId}`
         });

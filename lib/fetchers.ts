@@ -10,7 +10,6 @@ export interface StreamData {
   url: string;
 }
 
-// Yeni: Resmi Kick Token Alıcı
 async function getKickAppAccessToken() {
   try {
     const res = await fetch('https://id.kick.com/oauth/token', {
@@ -20,31 +19,24 @@ async function getKickAppAccessToken() {
         grant_type: 'client_credentials',
         client_id: process.env.KICK_CLIENT_ID!,
         client_secret: process.env.KICK_CLIENT_SECRET!,
-      })
+      }),
+      cache: 'no-store'
     });
     const data = await res.json();
     return data.access_token;
   } catch (e) { return null; }
 }
 
-// İSİM DÜZELTİLDİ: getOfficialKickStreams
 export async function getOfficialKickStreams(): Promise<StreamData[]> {
   try {
     const token = await getKickAppAccessToken();
     if (!token) return [];
-
     const res = await fetch('https://api.kick.com/public/v1/livestreams', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-        'User-Agent': 'KickTrack/1.0'
-      }
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      cache: 'no-store'
     });
-    
-    if (!res.ok) return [];
     const json = await res.json();
-    
-    return (json.data || []).slice(0, 12).map((s: any) => ({
+    return (json.data || []).slice(0, 15).map((s: any) => ({
       id: `kick-${s.channel_id}`,
       name: s.slug,
       platform: 'kick',
@@ -58,18 +50,18 @@ export async function getOfficialKickStreams(): Promise<StreamData[]> {
   } catch (e) { return []; }
 }
 
-// İSİM DÜZELTİLDİ/EKLENDİ: getYouTubeStreams
-export async function getYouTubeStreams(query: string = "live gaming"): Promise<StreamData[]> {
+export async function getYouTubeStreams(): Promise<StreamData[]> {
   try {
     const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&eventType=live&maxResults=10&key=${process.env.YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=live+gaming&type=video&eventType=live&maxResults=10&key=${process.env.YOUTUBE_API_KEY}`,
+      { cache: 'no-store' }
     );
     const json = await res.json();
     return (json.items || []).map((item: any) => ({
       id: `youtube-${item.id.videoId}`,
       name: item.snippet.channelTitle,
       platform: 'youtube',
-      viewers: 0, 
+      viewers: 0,
       isLive: true,
       category: 'YouTube Live',
       avatar: item.snippet.thumbnails?.default?.url,
@@ -79,14 +71,14 @@ export async function getYouTubeStreams(query: string = "live gaming"): Promise<
   } catch (e) { return []; }
 }
 
-// TWITCH (Senin çalışan yapın)
 export async function getTwitchStreams(token: string): Promise<StreamData[]> {
   try {
-    const res = await fetch(`https://api.twitch.tv/helix/streams?first=15`, {
+    const res = await fetch(`https://api.twitch.tv/helix/streams?first=20`, {
       headers: {
         'Client-ID': process.env.TWITCH_CLIENT_ID!,
         'Authorization': `Bearer ${token}`
-      }
+      },
+      cache: 'no-store'
     });
     const json = await res.json();
     return json.data.map((s: any) => ({
@@ -96,7 +88,7 @@ export async function getTwitchStreams(token: string): Promise<StreamData[]> {
       viewers: s.viewer_count,
       isLive: true,
       category: s.game_name,
-      avatar: '', 
+      avatar: '',
       thumbnail: s.thumbnail_url.replace('{width}', '440').replace('{height}', '248'),
       url: `https://twitch.tv/${s.user_login}`
     }));
